@@ -41,7 +41,9 @@ interface AppState {
   loadSample: (name: string) => Promise<void>;
   generateShareableLink: () => string;
   loadFromLink: (compressedData: string) => Promise<void>;
-  toggleDarkMode: () => void;
+  themePreference: 'light' | 'dark' | 'system';
+  setThemePreference: (theme: 'light' | 'dark' | 'system') => void;
+  syncSystemTheme: () => void;
   setAIConfigOpen: (visible: boolean) => void;
   setAIChatOpen: (visible: boolean) => void;
   setChatState: (state: ChatState) => void;
@@ -83,7 +85,7 @@ async function rebuild(template: string, model: string, dataString: string): Pro
   // Validate inputs before expensive operations
   // This fails fast on invalid JSON or CTO syntax without running network calls
   await validateBeforeRebuild(template, model, dataString);
-  
+
   const modelManager = new ModelManager({ strict: true });
   modelManager.addCTOModel(model, undefined, true);
   await modelManager.updateExternalModels();
@@ -116,15 +118,38 @@ async function rebuild(template: string, model: string, dataString: string): Pro
 
 const getInitialTheme = () => {
   if (typeof window !== 'undefined') {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      return { backgroundColor: '#121212', textColor: '#ffffff' };
-    } else if (savedTheme === 'light') {
-      return { backgroundColor: '#ffffff', textColor: '#121212' };
+    const savedTheme = localStorage.getItem('themePreference');
+    if (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'system') {
+      return savedTheme as 'light' | 'dark' | 'system';
+    }
+    // Backward compatibility with old theme state
+    const oldTheme = localStorage.getItem('theme');
+    if (oldTheme === 'dark' || oldTheme === 'light') {
+      localStorage.setItem('themePreference', oldTheme); // Migrate to new key
+      localStorage.removeItem('theme'); // Clean up old key
+      return oldTheme as 'light' | 'dark';
     }
   }
-  // Default to light theme
-  return { backgroundColor: '#ffffff', textColor: '#121212' };
+  // Default to system theme
+  return 'system';
+};
+
+const resolveThemeColors = (themePref: 'light' | 'dark' | 'system') => {
+  let isDark = false;
+  if (themePref === 'dark') {
+    isDark = true;
+  } else if (themePref === 'light') {
+    isDark = false;
+  } else {
+    // system
+    if (typeof window !== 'undefined') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  }
+  return {
+    backgroundColor: isDark ? '#121212' : '#ffffff',
+    textColor: isDark ? '#ffffff' : '#121212',
+  };
 };
 
 /* --- Helper to safely load panel state --- */
@@ -170,12 +195,15 @@ const getInitialLineNumbers = () => {
 const useAppStore = create<AppState>()(
   immer(
     devtools((set, get) => {
-      const initialTheme = getInitialTheme();
+      const initialThemePref = getInitialTheme();
+      const initialColors = resolveThemeColors(initialThemePref);
       const initialPanels = getInitialPanelState(); // Load saved panels
 
       return {
-        backgroundColor: initialTheme.backgroundColor,
-        textColor: initialTheme.textColor,
+        ...initialPanels, // Spread loaded panels first so they do not overwrite calculated attributes below
+        themePreference: initialThemePref,
+        backgroundColor: initialColors.backgroundColor,
+        textColor: initialColors.textColor,
         sampleName: playground.NAME,
         templateMarkdown: playground.TEMPLATE,
         editorValue: playground.TEMPLATE,
@@ -185,7 +213,6 @@ const useAppStore = create<AppState>()(
         editorAgreementData: JSON.stringify(playground.DATA, null, 2),
         agreementHtml: "",
         isAIConfigOpen: false,
-        isAIChatOpen: initialPanels.isAIChatOpen,
         error: undefined,
         samples: SAMPLES,
         chatState: {
@@ -195,9 +222,6 @@ const useAppStore = create<AppState>()(
         },
         aiConfig: null,
         chatAbortController: null,
-        isEditorsVisible: initialPanels.isEditorsVisible,
-        isPreviewVisible: initialPanels.isPreviewVisible,
-        isProblemPanelVisible: initialPanels.isProblemPanelVisible,
         isModelCollapsed: false,
         isTemplateCollapsed: false,
         isDataCollapsed: false,
@@ -358,25 +382,41 @@ const useAppStore = create<AppState>()(
             }));
           }
         },
-        toggleDarkMode: () => {
-          set((state) => {
-            const isDark = state.backgroundColor === '#121212';
-            const newTheme = {
-              backgroundColor: isDark ? '#ffffff' : '#121212',
-              textColor: isDark ? '#121212' : '#ffffff',
-            };
-
+        setThemePreference: (theme: 'light' | 'dark' | 'system') => {
+          set(() => {
+            const colors = resolveThemeColors(theme);
             if (typeof window !== 'undefined') {
-              const themeValue = isDark ? 'light' : 'dark';
-              localStorage.setItem('theme', themeValue);
+              localStorage.setItem('themePreference', theme);
               try {
+                const themeValue = colors.backgroundColor === '#121212' ? 'dark' : 'light';
                 document.documentElement.setAttribute('data-theme', themeValue);
               } catch (e) {
                 // ignore
               }
             }
-
-            return newTheme;
+            return {
+              themePreference: theme,
+              backgroundColor: colors.backgroundColor,
+              textColor: colors.textColor,
+            };
+          });
+        },
+        syncSystemTheme: () => {
+          set((state) => {
+            if (state.themePreference !== 'system') return {};
+            const colors = resolveThemeColors('system');
+            if (typeof window !== 'undefined') {
+              try {
+                const themeValue = colors.backgroundColor === '#121212' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', themeValue);
+              } catch (e) {
+                // ignore
+              }
+            }
+            return {
+              backgroundColor: colors.backgroundColor,
+              textColor: colors.textColor,
+            };
           });
         },
         setAIConfigOpen: (isOpen: boolean) => set(() => ({ isAIConfigOpen: isOpen })),

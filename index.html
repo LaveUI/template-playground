@@ -22,7 +22,15 @@
     <script>
       (function() {
         try {
-          var theme = localStorage.getItem('theme');
+          var themePref = localStorage.getItem('themePreference');
+          if (!themePref) {
+             var oldTheme = localStorage.getItem('theme');
+             themePref = oldTheme ? oldTheme : 'system';
+          }
+          var theme = themePref;
+          if (themePref === 'system') {
+             theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
           if (theme === 'dark' || theme === 'light') {
             document.documentElement.setAttribute('data-theme', theme);
           }

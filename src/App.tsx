@@ -25,6 +25,7 @@ const App = () => {
     }));
   const backgroundColor = useAppStore((state) => state.backgroundColor);
   const textColor = useAppStore((state) => state.textColor);
+  const syncSystemTheme = useAppStore((state) => state.syncSystemTheme);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
 
@@ -98,6 +99,15 @@ const App = () => {
     const theme = backgroundColor === "#121212" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", theme);
   }, [backgroundColor]);
+
+  // Listen for OS theme changes and sync if using 'system' theme preference
+  useEffect(() => {
+    syncSystemTheme(); // Force-sync on mount to avoid stale media queries on browser restart
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => syncSystemTheme();
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [syncSystemTheme]);
 
   return (
     <AntdApp>

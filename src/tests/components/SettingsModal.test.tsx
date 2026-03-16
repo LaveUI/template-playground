@@ -12,23 +12,11 @@ vi.mock('../../store/store', () => {
       setShowLineNumbers: vi.fn(),
       textColor: '#121212',
       backgroundColor: '#ffffff',
-      toggleDarkMode: vi.fn(),
+      themePreference: 'system',
+      setThemePreference: vi.fn(),
     })),
   };
 });
-
-// Mock react-dark-mode-toggle
-vi.mock('react-dark-mode-toggle', () => ({
-  default: ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button 
-      data-testid="dark-mode-toggle" 
-      onClick={onChange}
-      aria-pressed={checked}
-    >
-      Dark Mode Toggle
-    </button>
-  ),
-}));
 
 describe('SettingsModal', () => {
   beforeEach(() => {
@@ -37,48 +25,49 @@ describe('SettingsModal', () => {
 
   it('renders the modal with title when open', () => {
     render(<SettingsModal />);
-    
+
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('renders the Dark Mode setting', () => {
+  it('renders the Theme Preference setting', () => {
     render(<SettingsModal />);
-    
-    expect(screen.getByText('Dark Mode')).toBeInTheDocument();
-    expect(screen.getByText('Toggle between light and dark theme')).toBeInTheDocument();
+
+    expect(screen.getByText('Theme Preference')).toBeInTheDocument();
+    expect(screen.getByText('Choose your preferred appearance')).toBeInTheDocument();
   });
 
   it('renders the Show Line Numbers setting', () => {
     render(<SettingsModal />);
-    
+
     expect(screen.getByText('Show Line Numbers')).toBeInTheDocument();
     expect(screen.getByText('Display line numbers in code editors')).toBeInTheDocument();
   });
 
-  it('renders the dark mode toggle button', () => {
+  it('renders the theme preference options', () => {
     render(<SettingsModal />);
-    
-    const toggle = screen.getByTestId('dark-mode-toggle');
-    expect(toggle).toBeInTheDocument();
+
+    expect(screen.getByText('Light')).toBeInTheDocument();
+    expect(screen.getByText('Dark')).toBeInTheDocument();
+    expect(screen.getByText('System')).toBeInTheDocument();
   });
 
   it('renders the line numbers toggle switch', () => {
     render(<SettingsModal />);
-    
+
     const toggle = screen.getByRole('switch', { name: /toggle line numbers/i });
     expect(toggle).toBeInTheDocument();
   });
 
   it('line numbers toggle is checked when showLineNumbers is true', () => {
     render(<SettingsModal />);
-    
+
     const toggle = screen.getByRole('switch', { name: /toggle line numbers/i });
     expect(toggle).toBeChecked();
   });
 
   it('renders divider between settings', () => {
     render(<SettingsModal />);
-    
+
     const divider = document.querySelector('hr');
     expect(divider).toBeInTheDocument();
   });
