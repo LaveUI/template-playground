@@ -26,6 +26,8 @@ const App = () => {
     }));
   const backgroundColor = useAppStore((state) => state.backgroundColor);
   const textColor = useAppStore((state) => state.textColor);
+  const themePreference = useAppStore((state) => state.themePreference);
+  const setThemePreference = useAppStore((state) => state.setThemePreference);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
 
@@ -99,6 +101,20 @@ const App = () => {
     const theme = backgroundColor === "#121212" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", theme);
   }, [backgroundColor]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      if (themePreference === "system") {
+        setThemePreference("system");
+      }
+    };
+    
+    mediaQuery.addEventListener("change", handleChange);
+    
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [themePreference, setThemePreference]);
 
   return (
     <AntdApp>

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, Switch } from 'antd';
-import DarkModeToggle from 'react-dark-mode-toggle';
+import { Modal, Switch, Radio } from 'antd';
 import useAppStore from '../store/store';
 
 const SettingsModal: React.FC = () => {
@@ -11,7 +10,8 @@ const SettingsModal: React.FC = () => {
     setShowLineNumbers,
     textColor,
     backgroundColor,
-    toggleDarkMode
+    themePreference,
+    setThemePreference
   } = useAppStore((state) => ({
     isSettingsOpen: state.isSettingsOpen,
     setSettingsOpen: state.setSettingsOpen,
@@ -19,7 +19,8 @@ const SettingsModal: React.FC = () => {
     setShowLineNumbers: state.setShowLineNumbers,
     textColor: state.textColor,
     backgroundColor: state.backgroundColor,
-    toggleDarkMode: state.toggleDarkMode,
+    themePreference: state.themePreference,
+    setThemePreference: state.setThemePreference,
   }));
 
   const isDarkMode = backgroundColor === '#121212';
@@ -35,22 +36,26 @@ const SettingsModal: React.FC = () => {
       style={{ maxWidth: 480 }}
     >
       <div className="space-y-6 py-4">
-        {/* Dark Mode Toggle */}
+        {/* Theme Preference */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm sm:text-base" style={{ color: textColor }}>
-              Dark Mode
+              Theme Appearance
             </h4>
             <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Toggle between light and dark theme
+              Choose your preferred theme appearance
             </p>
           </div>
           <div className="flex-shrink-0">
-            <DarkModeToggle
-              onChange={toggleDarkMode}
-              checked={isDarkMode}
-              size={50}
-            />
+            <Radio.Group 
+              value={themePreference} 
+              onChange={(e) => setThemePreference(e.target.value)}
+              buttonStyle="solid"
+            >
+              <Radio.Button value="light">Light</Radio.Button>
+              <Radio.Button value="dark">Dark</Radio.Button>
+              <Radio.Button value="system">System</Radio.Button>
+            </Radio.Group>
           </div>
         </div>
 

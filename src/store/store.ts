@@ -41,7 +41,8 @@ interface AppState {
   loadSample: (name: string) => Promise<void>;
   generateShareableLink: () => string;
   loadFromLink: (compressedData: string) => Promise<void>;
-  toggleDarkMode: () => void;
+  themePreference: 'light' | 'dark' | 'system';
+  setThemePreference: (theme: 'light' | 'dark' | 'system') => void;
   setAIConfigOpen: (visible: boolean) => void;
   setAIChatOpen: (visible: boolean) => void;
   setChatState: (state: ChatState) => void;
@@ -115,16 +116,34 @@ async function rebuild(template: string, model: string, dataString: string): Pro
 }
 
 const getInitialTheme = () => {
+  let themePref: 'light' | 'dark' | 'system' = 'light';
   if (typeof window !== 'undefined') {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      return { backgroundColor: '#121212', textColor: '#ffffff' };
-    } else if (savedTheme === 'light') {
-      return { backgroundColor: '#ffffff', textColor: '#121212' };
+    const savedTheme = localStorage.getItem('themePreference') as 'light' | 'dark' | 'system' | null;
+    if (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'system') {
+      themePref = savedTheme;
+    } else {
+      // Migrate old 'theme' setting
+      const oldTheme = localStorage.getItem('theme');
+      if (oldTheme === 'dark' || oldTheme === 'light') {
+        themePref = oldTheme;
+      } else {
+        themePref = 'system'; // Default to system if no preference exists
+      }
+    }
+
+    let isDark = false;
+    if (themePref === 'dark') {
+      isDark = true;
+    } else if (themePref === 'system') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    if (isDark) {
+      return { themePreference: themePref, backgroundColor: '#121212', textColor: '#ffffff' };
     }
   }
   // Default to light theme
-  return { backgroundColor: '#ffffff', textColor: '#121212' };
+  return { themePreference: themePref, backgroundColor: '#ffffff', textColor: '#121212' };
 };
 
 /* --- Helper to safely load panel state --- */
@@ -176,6 +195,7 @@ const useAppStore = create<AppState>()(
       return {
         backgroundColor: initialTheme.backgroundColor,
         textColor: initialTheme.textColor,
+        themePreference: initialTheme.themePreference,
         sampleName: playground.NAME,
         templateMarkdown: playground.TEMPLATE,
         editorValue: playground.TEMPLATE,
@@ -358,25 +378,34 @@ const useAppStore = create<AppState>()(
             }));
           }
         },
-        toggleDarkMode: () => {
-          set((state) => {
-            const isDark = state.backgroundColor === '#121212';
-            const newTheme = {
-              backgroundColor: isDark ? '#ffffff' : '#121212',
-              textColor: isDark ? '#121212' : '#ffffff',
+        setThemePreference: (theme: 'light' | 'dark' | 'system') => {
+          set(() => {
+            let isDark = false;
+            if (theme === 'dark') {
+              isDark = true;
+            } else if (theme === 'system') {
+              if (typeof window !== 'undefined') {
+                isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+              }
+            }
+
+            const newThemeState = {
+              themePreference: theme,
+              backgroundColor: isDark ? '#121212' : '#ffffff',
+              textColor: isDark ? '#ffffff' : '#121212',
             };
 
             if (typeof window !== 'undefined') {
-              const themeValue = isDark ? 'light' : 'dark';
-              localStorage.setItem('theme', themeValue);
+              localStorage.setItem('themePreference', theme);
               try {
-                document.documentElement.setAttribute('data-theme', themeValue);
+                // Keep the old attribute sync for document styling
+                document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
               } catch (e) {
                 // ignore
               }
             }
 
-            return newTheme;
+            return newThemeState;
           });
         },
         setAIConfigOpen: (isOpen: boolean) => set(() => ({ isAIConfigOpen: isOpen })),
